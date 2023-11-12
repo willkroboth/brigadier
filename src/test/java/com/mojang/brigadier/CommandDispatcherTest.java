@@ -5,11 +5,14 @@ package com.mojang.brigadier;
 
 import com.google.common.collect.Lists;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.tree.ArgumentCommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mojang.brigadier.tree.RootCommandNode;
 import org.hamcrest.CustomMatcher;
@@ -638,6 +641,58 @@ public class CommandDispatcherTest {
         verify(consumer).onCommandComplete(argThat(contextSourceMatches(source)), eq(true), eq(3));
         verify(consumer).onCommandComplete(argThat(contextSourceMatches(otherSource)), eq(true), eq(3));
         verifyNoMoreInteractions(consumer);
+    }
+
+    @Test
+    public void testCustomStuff() throws Exception {
+        System.out.println("Testing custom stuff");
+
+        SuggestionProvider<Object> monitorSuggestions = (context, builder) -> {
+            System.out.println(context.getArguments());
+
+            builder.suggest("a").suggest("b").suggest("c");
+            return builder.buildFuture();
+        };
+
+        ArgumentCommandNode<Object, String> end = argument("ending", StringArgumentType.word())
+                .suggests(monitorSuggestions)
+                .then(argument("lastArg", StringArgumentType.word())
+                        .suggests(monitorSuggestions)
+                        .executes(context -> {
+                            System.out.println(context.getArguments());
+
+                            return 1;
+                        })
+                )
+                .build();
+
+        ArgumentCommandNode<Object, Integer> firstBranchEnding = argument("number", IntegerArgumentType.integer(1, 10)).then(end).build();
+        LiteralArgumentBuilder<Object> firstBranch = literal("low").then(firstBranchEnding);
+
+        LiteralArgumentBuilder<Object> secondBranch = literal("high").then(
+                argument("number", IntegerArgumentType.integer(11, 20))
+                        .redirect(firstBranchEnding)
+        );
+
+        LiteralArgumentBuilder<Object> base = literal("base")
+                .then(firstBranch)
+                .then(secondBranch);
+
+        subject.register(base);
+
+        System.out.println(subject.getCompletionSuggestions(subject.parse("base low 5 ", source)).get());
+        System.out.println();
+        System.out.println(subject.getCompletionSuggestions(subject.parse("base low 5 a ", source)).get());
+        System.out.println();
+        System.out.println(subject.getCompletionSuggestions(subject.parse("base high 15 ", source)).get());
+        System.out.println();
+        System.out.println(subject.getCompletionSuggestions(subject.parse("base high 15 a ", source)).get());
+        System.out.println();
+
+        subject.execute("base low 5 a b", source);
+        System.out.println();
+        subject.execute("base high 15 a b", source);
+        System.out.println();
     }
 
     public static Matcher<CommandContext<Object>> contextSourceMatches(final Object source) {

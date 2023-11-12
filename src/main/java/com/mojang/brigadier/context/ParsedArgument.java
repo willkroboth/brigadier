@@ -38,4 +38,12 @@ public class ParsedArgument<S, T> {
     public int hashCode() {
         return Objects.hash(range, result);
     }
+
+    @Override
+    public String toString() {
+        return "ParsedArgument{" +
+                "range=" + range +
+                ", result=" + result +
+                '}';
+    }
 }

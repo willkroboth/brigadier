@@ -33,6 +33,11 @@ public class CommandContext<S> {
      */
     private final Command<S> command;
     private final Map<String, ParsedArgument<S, ?>> arguments;
+
+    public Map<String, ParsedArgument<S, ?>> getArguments() {
+        return arguments;
+    }
+
     private final CommandNode<S> rootNode;
     private final List<ParsedCommandNode<S>> nodes;
     private final StringRange range;
